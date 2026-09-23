@@ -1,0 +1,9 @@
+{
+  "context": { "date": "2026-09-14T10:00:00+00:00", "num_cpus": 10, "library_build_type": "release" },
+  "benchmarks": [
+    { "name": "BM_Encode", "run_name": "BM_Encode", "run_type": "iteration", "repetitions": 3, "repetition_index": 0, "threads": 1, "iterations": 664108, "real_time": 1053.2, "cpu_time": 1040.1, "time_unit": "ns", "bytes_per_second": 486000000 },
+    { "name": "BM_Encode_mean", "run_name": "BM_Encode", "run_type": "aggregate", "aggregate_name": "mean", "threads": 1, "iterations": 3, "real_time": 1060.4, "cpu_time": 1045.0, "time_unit": "ns" },
+    { "name": "BM_Encode_median", "run_name": "BM_Encode", "run_type": "aggregate", "aggregate_name": "median", "threads": 1, "iterations": 3, "real_time": 1058.0, "cpu_time": 1044.0, "time_unit": "ns" },
+    { "name": "BM_Encode_stddev", "run_name": "BM_Encode", "run_type": "aggregate", "aggregate_name": "stddev", "threads": 1, "iterations": 3, "real_time": 12.7, "cpu_time": 11.9, "time_unit": "ns" }
+  ]
+}

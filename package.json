@@ -1,0 +1,48 @@
+{
+  "name": "benchable",
+  "version": "0.1.0",
+  "description": "Benchable client: the CLI, the agent skill, a typed SDK, and the benchmark format parsers and statistics behind every verdict.",
+  "license": "MIT",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TimMikeladze/benchable"
+  },
+  "homepage": "https://benchable.sh",
+  "keywords": ["benchmarking", "performance", "ci", "regression-testing", "agent-skill", "mcp"],
+  "bin": {
+    "benchable": "./skills/benchable/scripts/benchable.mjs"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./formats": "./src/formats/index.ts",
+    "./statistics": "./src/statistics.ts",
+    "./comparison": "./src/comparison.ts",
+    "./schema": "./src/schema.ts",
+    "./format": "./src/format.ts",
+    "./cli": "./src/cli/api.ts"
+  },
+  "files": ["src", "skills", "examples", "README.md", "LICENSE"],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "skill:build": "bun run scripts/build-skill.ts",
+    "benchable": "bun run src/cli/benchable.ts"
+  },
+  "dependencies": {
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@tanstack/charts": "^0.18.0",
+    "@types/bun": "^1.4.2",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "typescript": "^5"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "packageManager": "bun@1.4.0"
+}

@@ -1,0 +1,12 @@
+# HELP http_request_duration_seconds Request duration
+# TYPE http_request_duration_seconds summary
+http_request_duration_seconds{handler="/checkout",quantile="0.5"} 0.0503
+http_request_duration_seconds{handler="/checkout",quantile="0.95"} 0.1204
+http_request_duration_seconds{handler="/checkout",quantile="0.99"} 0.2601
+http_request_duration_seconds_sum{handler="/checkout"} 881.4
+http_request_duration_seconds_count{handler="/checkout"} 14820
+# HELP process_cpu_seconds_total Total user and system CPU time
+# TYPE process_cpu_seconds_total counter
+process_cpu_seconds_total 4.21
+# TYPE go_gc_duration_seconds_bucket histogram
+go_gc_duration_seconds_bucket{le="0.005"} 12

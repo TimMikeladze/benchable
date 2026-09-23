@@ -1,0 +1,92 @@
+# Posts a run to Benchable after the benchmark suite, comments the result on the pull
+# request, and fails the job on a regression or a blown budget.
+# Set BENCHABLE_URL and BENCHABLE_KEY as repository secrets.
+name: benchmarks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    env:
+      BENCHABLE_URL: ${{ secrets.BENCHABLE_URL }}
+      BENCHABLE_KEY: ${{ secrets.BENCHABLE_KEY }}
+      BRANCH: ${{ github.head_ref || github.ref_name }}
+    permissions:
+      contents: read
+      # Needed only by the PR comment step below.
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+
+      # --- Option A: your tool's own output, imported as-is ------------------------------
+      - run: go test -bench=. -benchmem ./... | tee bench.txt
+
+      # `import` detects the format. It exits 1 when a metric regressed, which fails the job.
+      # Reusing the run id as the idempotency key means a re-run of this job does not create
+      # a second stored run.
+      - name: Post the benchmark
+        run: |
+          curl -fsSL "$BENCHABLE_URL/api/v1/import?branch=$BRANCH&commitSha=$GITHUB_SHA&environment=ubuntu-latest&idempotencyKey=$GITHUB_RUN_ID" \
+            -H "Authorization: Bearer $BENCHABLE_KEY" \
+            -H "Accept: text/plain" \
+            --data-binary @bench.txt \
+            -D headers.txt -o result.txt
+          cat result.txt
+          echo "RUN_ID=$(grep -i '^x-benchable-run-id:' headers.txt | tr -d '\r' | awk '{print $2}')" >> "$GITHUB_ENV"
+          regressions=$(grep -i '^x-benchable-regressions:' headers.txt | tr -d '\r' | awk '{print $2}')
+          budget=$(grep -i '^x-benchable-budget-failures:' headers.txt | tr -d '\r' | awk '{print $2}')
+          echo "REGRESSIONS=${regressions:-0}" >> "$GITHUB_ENV"
+          echo "BUDGET_FAILURES=${budget:-0}" >> "$GITHUB_ENV"
+
+      # Attach the evidence. The run report links whatever is attached, so the comment below
+      # describes the regression and links the profile of it.
+      - name: Attach the profile
+        if: hashFiles('flame.svg') != ''
+        run: |
+          curl -fsSL -X POST \
+            "$BENCHABLE_URL/api/v1/runs/$RUN_ID/artifacts?name=flame.svg&kind=flamegraph" \
+            -H "Authorization: Bearer $BENCHABLE_KEY" \
+            --data-binary @flame.svg
+
+      # A sticky comment: the marker lets each run find and edit its own comment instead of
+      # stacking a new one on every push.
+      - name: Comment the result on the pull request
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.number }}
+        run: |
+          marker="benchable-pr-$PR"
+          curl -fsSL "$BENCHABLE_URL/api/v1/runs/$RUN_ID/report?marker=$marker" \
+            -H "Authorization: Bearer $BENCHABLE_KEY" -o report.md
+          existing=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" \
+            --jq "map(select(.body | contains(\"<!-- $marker -->\"))) | .[0].id // empty")
+          if [ -n "$existing" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$existing" -F body=@report.md
+          else
+            gh pr comment "$PR" --body-file report.md
+          fi
+
+      - name: Fail on a regression or a blown budget
+        run: |
+          if [ "$REGRESSIONS" -gt 0 ]; then
+            echo "::error::$REGRESSIONS metric(s) regressed against the baseline run"
+          fi
+          if [ "$BUDGET_FAILURES" -gt 0 ]; then
+            echo "::error::$BUDGET_FAILURES metric(s) are over their absolute budget"
+          fi
+          [ "$REGRESSIONS" -eq 0 ] && [ "$BUDGET_FAILURES" -eq 0 ]
+
+      # --- Option B: the CLI, if you would rather not hand-roll curl ---------------------
+      # - run: bunx benchable import --file bench.txt --branch "$BRANCH" --commit "$GITHUB_SHA"
+      # - run: bunx benchable upload --run last --file flame.svg --kind flamegraph
+      # - run: bunx benchable report --run last --marker "benchable-pr-${{ github.event.number }}" > report.md
+      #
+      # --- Option C: numbers you already have as JSON ------------------------------------
+      # - run: bun run bench --json > metrics.json
+      # - run: bunx benchable submit --metrics metrics.json --branch "$BRANCH" --commit "$GITHUB_SHA"

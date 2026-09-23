@@ -1,0 +1,9 @@
+goos: darwin
+goarch: arm64
+pkg: example.com/encoding
+cpu: Apple M1 Pro
+BenchmarkEncode-10       	 1183424	      1053 ns/op	     512 B/op	       4 allocs/op
+BenchmarkDecode-10       	  520334	      2140 ns/op	    1024 B/op	       9 allocs/op
+BenchmarkStream-10       	   10000	    118400 ns/op	 452.11 MB/s	    2048 B/op	      12 allocs/op
+PASS
+ok  	example.com/encoding	4.213s

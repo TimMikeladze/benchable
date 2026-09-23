@@ -1,0 +1,20 @@
+{
+  "machine_info": { "python_version": "3.13.1", "system": "Linux" },
+  "commit_info": { "id": "9f3c1abcd" },
+  "benchmarks": [
+    {
+      "group": "serialize",
+      "name": "test_dumps",
+      "fullname": "tests/test_json.py::test_dumps",
+      "stats": {
+        "min": 0.000102,
+        "max": 0.000311,
+        "mean": 0.000145,
+        "stddev": 0.000021,
+        "median": 0.000141,
+        "rounds": 4821,
+        "ops": 6896.55
+      }
+    }
+  ]
+}

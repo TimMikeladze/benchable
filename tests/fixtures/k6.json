@@ -1,0 +1,9 @@
+{
+  "metrics": {
+    "http_req_duration": { "avg": 118.42, "min": 90.1, "med": 110.3, "max": 512.7, "p(90)": 168.2, "p(95)": 180.4, "p(99)": 260.1 },
+    "http_reqs": { "count": 14820, "rate": 246.9 },
+    "http_req_failed": { "value": 0.0021, "passes": 31, "fails": 14789 },
+    "vus_max": { "value": 50, "min": 50, "max": 50 }
+  },
+  "root_group": { "name": "", "path": "", "groups": {}, "checks": {} }
+}

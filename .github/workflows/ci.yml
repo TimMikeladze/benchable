@@ -1,0 +1,23 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun test
+      # The skill ships a bundled CLI; fail if it is stale against src/.
+      - run: bun run skill:build && git diff --exit-code skills/
+      # The bundle must run under plain Node, which is what agents invoke.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      - run: node skills/benchable/scripts/benchable.mjs help
