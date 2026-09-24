@@ -1,9 +1,11 @@
 import { benchable } from "./adapters/benchable";
+import { chromeTrace } from "./adapters/chrome-trace";
 import { criterion } from "./adapters/criterion";
 import { csv } from "./adapters/csv";
 import { goBench } from "./adapters/go-bench";
 import { googleBenchmark } from "./adapters/google-benchmark";
 import { hyperfine } from "./adapters/hyperfine";
+import { jaeger } from "./adapters/jaeger";
 import { jmh } from "./adapters/jmh";
 import { k6 } from "./adapters/k6";
 import { lighthouse } from "./adapters/lighthouse";
@@ -11,6 +13,7 @@ import { otlpTrace } from "./adapters/otlp-trace";
 import { prometheus } from "./adapters/prometheus";
 import { pytestBenchmark } from "./adapters/pytest-benchmark";
 import { vitestBench } from "./adapters/vitest-bench";
+import { zipkin } from "./adapters/zipkin";
 import { FormatParseError, type FormatAdapter, type FormatId, type FormatInput, type ParsedRun } from "./types";
 
 /**
@@ -20,6 +23,9 @@ import { FormatParseError, type FormatAdapter, type FormatId, type FormatInput, 
 export const ADAPTERS: readonly FormatAdapter[] = [
   benchable,
   otlpTrace,
+  jaeger,
+  zipkin,
+  chromeTrace,
   lighthouse,
   googleBenchmark,
   pytestBenchmark,

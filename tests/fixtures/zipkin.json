@@ -1,0 +1,45 @@
+[
+  {
+    "id": "root1",
+    "traceId": "1a2b3c",
+    "name": "GET /orders",
+    "timestamp": 1789450000000000,
+    "duration": 310000,
+    "localEndpoint": { "serviceName": "storefront" },
+    "tags": { "http.method": "GET" }
+  },
+  {
+    "id": "db1",
+    "parentId": "root1",
+    "traceId": "1a2b3c",
+    "name": "SELECT orders",
+    "timestamp": 1789450000400000,
+    "duration": 200000,
+    "kind": "CLIENT",
+    "localEndpoint": { "serviceName": "storefront" },
+    "remoteEndpoint": { "serviceName": "postgres", "ipv4": "10.0.0.5", "port": 5432 },
+    "tags": { "sql.query": "select * from orders" }
+  },
+  {
+    "id": "db1",
+    "parentId": "root1",
+    "traceId": "1a2b3c",
+    "name": "SELECT orders",
+    "timestamp": 1789450000450000,
+    "duration": 190000,
+    "kind": "SERVER",
+    "shared": true,
+    "localEndpoint": { "serviceName": "postgres" },
+    "tags": {}
+  },
+  {
+    "id": "cache1",
+    "parentId": "root1",
+    "traceId": "1a2b3c",
+    "name": "GET /orders/:id",
+    "timestamp": 1789450000100000,
+    "duration": 15000,
+    "localEndpoint": { "serviceName": "storefront" },
+    "tags": { "cache.hit": "true", "error": "connection refused" }
+  }
+]

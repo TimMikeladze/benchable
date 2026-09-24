@@ -50,6 +50,13 @@ interface Options {
 /** Flags that may repeat; each occurrence is collected. */
 const REPEATABLE = new Set(["artifact"]);
 
+/**
+ * Files larger than this request an upload grant and PUT to Blob instead of a request body —
+ * serverless platforms cap request bodies near here regardless of the server's own import
+ * limit. Mirrors DIRECT_IMPORT_MAX_BYTES in the app.
+ */
+const IMPORT_GRANT_THRESHOLD = 4 * 1024 * 1024;
+
 export function parseArgs(argv: string[]): { command: string; positionals: string[]; options: Options } {
   const [command = "help", ...rest] = argv;
   const options: Options = {};
@@ -126,6 +133,76 @@ async function request(
     budgetFailures: budgetHeader === null ? null : Number(budgetHeader),
     runId: response.headers.get("x-benchable-run-id"),
   };
+}
+
+/**
+ * Attach one artifact to a run, direct or — above the request-body threshold — via an upload
+ * grant: mint, PUT to Blob, adopt by reference. Same fallback rules as `record`'s import
+ * path (docs/large-uploads.md).
+ */
+async function attachArtifact(
+  url: string,
+  key: string,
+  runId: string,
+  path: string,
+  name: string,
+  kind?: string,
+): Promise<{ status: number; body: string }> {
+  const query = new URLSearchParams({ name });
+  if (kind) query.set("kind", kind);
+
+  // Read as bytes, not text: a flamegraph is usually SVG but a heap snapshot is not.
+  const bytes = readFileSync(path);
+  if (bytes.byteLength <= IMPORT_GRANT_THRESHOLD) {
+    return request(`/api/v1/runs/${encodeURIComponent(runId)}/artifacts?${query.toString()}`, {
+      url,
+      key,
+      method: "POST",
+      headers: { "content-type": "application/octet-stream" },
+      body: bytes,
+    });
+  }
+
+  const grantResponse = await request(`/api/v1/runs/${encodeURIComponent(runId)}/artifacts/upload-url`, {
+    url,
+    key,
+    method: "POST",
+    headers: { "content-type": "application/json", accept: "application/json" },
+    body: JSON.stringify({ name, ...(kind ? { kind } : {}) }),
+  });
+  // Older servers, or no Blob configured: fall back to the direct body and let its error
+  // explain the limit.
+  if (grantResponse.status === 404 || grantResponse.status === 503) {
+    return request(`/api/v1/runs/${encodeURIComponent(runId)}/artifacts?${query.toString()}`, {
+      url,
+      key,
+      method: "POST",
+      headers: { "content-type": "application/octet-stream" },
+      body: bytes,
+    });
+  }
+  if (grantResponse.status >= 400) return grantResponse;
+
+  const grant = JSON.parse(grantResponse.body) as {
+    token: string;
+    pathname: string;
+    access: "private";
+    artifactId: string;
+  };
+  const { put } = await import("@vercel/blob/client");
+  const uploaded = await put(grant.pathname, bytes, {
+    access: grant.access,
+    token: grant.token,
+    contentType: "application/octet-stream",
+  });
+
+  return request(`/api/v1/runs/${encodeURIComponent(runId)}/artifacts?${query.toString()}`, {
+    url,
+    key,
+    method: "POST",
+    headers: { "content-type": "application/json", accept: "text/plain" },
+    body: JSON.stringify({ url: uploaded.url, artifactId: grant.artifactId }),
+  });
 }
 
 function commonQuery(options: Options): string {
@@ -421,14 +498,52 @@ async function main() {
     // Makes a retried record return the same run instead of a second one.
     params.set("idempotencyKey", `record:${createHash("sha256").update(raw).update(params.toString()).digest("hex").slice(0, 32)}`);
 
+    // A file bigger than a request body may carry (serverless platforms cap bodies near 4 MB)
+    // uploads straight to Blob with a server-minted grant and imports by reference. Falls
+    // back to the direct body on servers without it. See docs/large-uploads.md.
+    let body: string = raw;
+    let contentType = "text/plain";
+    if (Buffer.byteLength(raw) > IMPORT_GRANT_THRESHOLD) {
+      const grantResponse = await request("/api/v1/import/upload-url", {
+        url,
+        key,
+        method: "POST",
+        headers: { accept: "application/json" },
+      });
+      if (grantResponse.status < 400) {
+        try {
+          const grant = JSON.parse(grantResponse.body) as {
+            token: string;
+            pathname: string;
+            access: "private";
+          };
+          const { put } = await import("@vercel/blob/client");
+          const uploaded = await put(grant.pathname, raw, {
+            access: grant.access,
+            token: grant.token,
+            contentType: "application/json",
+          });
+          body = JSON.stringify({ url: uploaded.url });
+          contentType = "application/json";
+        } catch (error) {
+          fail(`upload failed: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      } else if (grantResponse.status !== 404 && grantResponse.status !== 503) {
+        process.stdout.write(
+          grantResponse.body.endsWith("\n") ? grantResponse.body : `${grantResponse.body}\n`,
+        );
+        process.exit(2);
+      }
+    }
+
     let result;
     try {
       result = await request(`/api/v1/import?${params.toString()}`, {
         url,
         key,
         method: "POST",
-        headers: { "content-type": "text/plain", ...(options.json === true ? { accept: "application/json" } : {}) },
-        body: raw,
+        headers: { "content-type": contentType, ...(options.json === true ? { accept: "application/json" } : {}) },
+        body,
       });
     } catch (error) {
       // Offline, DNS, refused: never lose a measurement. Keep it locally and say how to sync.
@@ -439,6 +554,11 @@ async function main() {
         `offline, could not reach ${url} (${error instanceof Error ? error.message : String(error)}); run \`benchable local sync\` later`,
       );
     }
+    if (result.status === 413) {
+      process.stderr.write(
+        "The server rejected the body size. Configure BLOB_READ_WRITE_TOKEN on it to enable large-file uploads.\n",
+      );
+    }
     if (result.status >= 400) {
       process.stdout.write(result.body.endsWith("\n") ? result.body : `${result.body}\n`);
       process.exit(2);
@@ -446,15 +566,14 @@ async function main() {
 
     const runId = result.runId;
     for (const artifact of input.artifacts) {
-      const query = new URLSearchParams({ name: basename(artifact.path) });
-      if (artifact.kind) query.set("kind", artifact.kind);
-      const upload = await request(`/api/v1/runs/${encodeURIComponent(runId!)}/artifacts?${query.toString()}`, {
+      const upload = await attachArtifact(
         url,
         key,
-        method: "POST",
-        headers: { "content-type": "application/octet-stream" },
-        body: readFileSync(artifact.path),
-      });
+        runId!,
+        artifact.path,
+        basename(artifact.path),
+        artifact.kind ?? undefined,
+      );
       if (upload.status >= 400) {
         process.stderr.write(`artifact ${artifact.path} failed: ${upload.body}\n`);
         process.exit(2);
@@ -562,24 +681,15 @@ async function main() {
   if (command === "upload") {
     const path = options.file;
     if (typeof path !== "string") fail("upload needs --file <path>.");
-    // Read as bytes, not text: a flamegraph is usually SVG but a heap snapshot is not.
-    const bytes = readFileSync(path);
     const runId = await resolveRun(options, url, key);
 
-    const query = new URLSearchParams({
-      name: typeof options.name === "string" ? options.name : basename(path),
-    });
-    if (typeof options.kind === "string") query.set("kind", options.kind);
-
-    const { status, body } = await request(
-      `/api/v1/runs/${encodeURIComponent(runId)}/artifacts?${query.toString()}`,
-      {
-        url,
-        key,
-        method: "POST",
-        headers: { "content-type": "application/octet-stream" },
-        body: bytes,
-      },
+    const { status, body } = await attachArtifact(
+      url,
+      key,
+      runId,
+      path,
+      typeof options.name === "string" ? options.name : basename(path),
+      typeof options.kind === "string" ? options.kind : undefined,
     );
     process.stdout.write(body);
     process.exit(status >= 400 ? 2 : 0);

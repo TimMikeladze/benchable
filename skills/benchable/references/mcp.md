@@ -67,7 +67,7 @@ Every tool answers in plain text. The key scopes every tool to one project.
 | `list_artifacts` | See what is attached to a run. |
 | `list_branches` | List branches that have runs. |
 | `submit_run` | Record measurements (native metrics object). Pass `idempotencyKey` on retries. |
-| `import_run` | Record a tool's raw output (the same 13 formats). |
+| `import_run` | Record a tool's raw output (the same 16 formats). |
 | `list_comments` / `post_comment` / `resolve_comment` | Read the discussion before adding to it. Comments are shown as automated. |
 | `explain_regression` | Get an AI diagnosis of a bad run (when the server has AI enabled). |
 

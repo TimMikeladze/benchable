@@ -13,7 +13,10 @@ export type FormatId =
   | "jmh"
   | "prometheus"
   | "csv"
-  | "otlp-trace";
+  | "otlp-trace"
+  | "jaeger"
+  | "zipkin"
+  | "chrome-trace";
 
 export interface MetricValue {
   value: number;

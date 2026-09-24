@@ -1,12 +1,17 @@
 import type { SpanPayload } from "../../schema";
 
-import { FormatParseError, type FormatAdapter, type MetricValue } from "../types";
-import {compactMetric, isRecord, precise, round } from "../util";
+import { FormatParseError, type FormatAdapter } from "../types";
+import { isRecord, precise } from "../util";
+import { summarizeTraceMetrics, traceRunLabel } from "./trace-util";
 
 /**
  * OTLP/JSON trace export (`ResourceSpans`). This is the one adapter that produces spans
  * rather than metrics: the trace itself is the payload, and we derive a small number of
  * summary metrics from it so the run still has something to chart.
+ *
+ * An export can carry many traces — a collector batches what it saw — so each span keeps its
+ * `traceId` and the service name from its resource, and timings are rebased **per trace** so
+ * every waterfall starts at zero no matter what it shares the payload with.
  *
  * Timestamps are nanosecond strings (they exceed Number.MAX_SAFE_INTEGER), so the arithmetic
  * is done in BigInt and only the millisecond offset is converted to a number.
@@ -43,12 +48,14 @@ function attributesToRecord(attributes: unknown): Record<string, unknown> {
 
 interface RawSpan {
   spanId: string;
+  traceId: string | null;
   parentSpanId: string | null;
   name: string;
   start: bigint;
   end: bigint;
   status: "ok" | "error";
   attributes: Record<string, unknown>;
+  service: string | null;
 }
 
 function collectSpans(json: unknown): RawSpan[] {
@@ -57,6 +64,10 @@ function collectSpans(json: unknown): RawSpan[] {
 
   for (const resourceSpan of json.resourceSpans) {
     if (!isRecord(resourceSpan)) continue;
+    const resource = isRecord(resourceSpan.resource)
+      ? attributesToRecord(resourceSpan.resource.attributes)
+      : {};
+    const service = typeof resource["service.name"] === "string" ? resource["service.name"] : null;
     const scopeSpans = Array.isArray(resourceSpan.scopeSpans)
       ? resourceSpan.scopeSpans
       : Array.isArray(resourceSpan.instrumentationLibrarySpans)
@@ -77,9 +88,11 @@ function collectSpans(json: unknown): RawSpan[] {
             ? span.parentSpanId
             : null;
         const statusCode = isRecord(span.status) ? span.status.code : undefined;
+        const traceId = typeof span.traceId === "string" && span.traceId.length > 0 ? span.traceId : null;
 
         out.push({
           spanId,
+          traceId,
           parentSpanId: parent,
           name: typeof span.name === "string" ? span.name : spanId,
           start,
@@ -87,6 +100,7 @@ function collectSpans(json: unknown): RawSpan[] {
           // OTLP status: 0 UNSET, 1 OK, 2 ERROR.
           status: statusCode === 2 || statusCode === "STATUS_CODE_ERROR" ? "error" : "ok",
           attributes: attributesToRecord(span.attributes),
+          service,
         });
       }
     }
@@ -95,10 +109,20 @@ function collectSpans(json: unknown): RawSpan[] {
   return out;
 }
 
+/** The earliest start of each trace, so every trace can be rebased to its own zero. */
+function traceOrigins(raw: readonly RawSpan[]): Map<string | null, bigint> {
+  const origins = new Map<string | null, bigint>();
+  for (const span of raw) {
+    const current = origins.get(span.traceId);
+    if (current === undefined || span.start < current) origins.set(span.traceId, span.start);
+  }
+  return origins;
+}
+
 export const otlpTrace: FormatAdapter = {
   id: "otlp-trace",
   label: "OpenTelemetry traces",
-  description: "OTLP/JSON ResourceSpans; becomes a trace waterfall plus summary timings.",
+  description: "OTLP/JSON ResourceSpans; becomes trace waterfalls plus summary timings.",
   produce: "Export OTLP/JSON from your collector, or POST the payload your app already sends.",
 
   detect(input) {
@@ -112,50 +136,29 @@ export const otlpTrace: FormatAdapter = {
       throw new FormatParseError("No spans found in resourceSpans", "otlp-trace");
     }
 
-    const origin = raw.reduce((min, span) => (span.start < min ? span.start : min), raw[0].start);
+    const origins = traceOrigins(raw);
     const nanosToMs = (value: bigint) => Number(value) / 1e6;
 
     const spans: SpanPayload[] = raw.map((span) => ({
       id: span.spanId,
+      traceId: span.traceId ?? undefined,
+      service: span.service ?? undefined,
       parentId: span.parentSpanId,
       name: span.name,
-      startMs: precise(nanosToMs(span.start - origin)),
+      startMs: precise(nanosToMs(span.start - (origins.get(span.traceId) ?? span.start))),
       durationMs: precise(nanosToMs(span.end - span.start)),
       status: span.status,
       attributes: Object.keys(span.attributes).length > 0 ? span.attributes : undefined,
     }));
 
-    const totalMs = spans.reduce((max, span) => Math.max(max, span.startMs + span.durationMs), 0);
-    const errors = spans.filter((span) => span.status === "error").length;
-    const roots = raw.filter((span) => span.parentSpanId === null);
-
-    const metrics: Record<string, MetricValue> = {
-      "trace.total_ms": compactMetric({
-        value: precise(totalMs),
-        unit: "ms",
-        direction: "lower",
-        name: "Trace wall time",
-      }),
-      "trace.span_count": compactMetric({
-        value: spans.length,
-        unit: "count",
-        direction: "lower",
-        name: "Spans",
-      }),
-      "trace.error_spans": compactMetric({
-        value: errors,
-        unit: "count",
-        direction: "lower",
-        name: "Spans that errored",
-      }),
-    };
-
-    const label = roots[0]?.name;
-    const startedAt = new Date(Number(origin / 1_000_000n));
+    const label = traceRunLabel(spans);
+    const startedAt = new Date(
+      Number(raw.reduce((min, span) => (span.start < min ? span.start : min), raw[0].start) / 1_000_000n),
+    );
 
     return {
       format: "otlp-trace",
-      metrics,
+      metrics: summarizeTraceMetrics(spans),
       spans,
       label,
       startedAt: Number.isFinite(startedAt.getTime()) ? startedAt : undefined,

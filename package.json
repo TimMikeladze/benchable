@@ -9,7 +9,14 @@
     "url": "https://github.com/TimMikeladze/benchable"
   },
   "homepage": "https://benchable.sh",
-  "keywords": ["benchmarking", "performance", "ci", "regression-testing", "agent-skill", "mcp"],
+  "keywords": [
+    "benchmarking",
+    "performance",
+    "ci",
+    "regression-testing",
+    "agent-skill",
+    "mcp"
+  ],
   "bin": {
     "benchable": "./skills/benchable/scripts/benchable.mjs"
   },
@@ -22,7 +29,13 @@
     "./format": "./src/format.ts",
     "./cli": "./src/cli/api.ts"
   },
-  "files": ["src", "skills", "examples", "README.md", "LICENSE"],
+  "files": [
+    "src",
+    "skills",
+    "examples",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "bun test",
@@ -30,7 +43,8 @@
     "benchable": "bun run src/cli/benchable.ts"
   },
   "dependencies": {
-    "zod": "^4.5.4"
+    "zod": "^4.5.4",
+    "@vercel/blob": "^2.8.0"
   },
   "devDependencies": {
     "@tanstack/charts": "^0.18.0",

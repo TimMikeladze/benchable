@@ -1,0 +1,18 @@
+{
+  "traceEvents": [
+    { "ph": "M", "name": "process_name", "pid": 1, "tid": 0, "args": { "name": "Browser" } },
+    { "ph": "M", "name": "process_name", "pid": 2, "tid": 0, "args": { "name": "Renderer" } },
+    { "ph": "M", "name": "thread_name", "pid": 2, "tid": 7, "args": { "name": "CrRendererMain" } },
+    { "ph": "M", "name": "thread_name", "pid": 2, "tid": 9, "args": { "name": "Compositor" } },
+
+    { "ph": "B", "name": "Navigate", "pid": 2, "tid": 7, "ts": 1000, "cat": "devtools.timeline", "args": { "url": "https://example.com" } },
+    { "ph": "X", "name": "ParseHTML", "pid": 2, "tid": 7, "ts": 1200, "dur": 3000, "cat": "devtools.timeline", "args": { "length": 4200 } },
+    { "ph": "B", "name": "Layout", "pid": 2, "tid": 7, "ts": 4500, "cat": "devtools.timeline", "args": {} },
+    { "ph": "X", "name": "UpdateLayoutTree", "pid": 2, "tid": 7, "ts": 4600, "dur": 1400, "cat": "devtools.timeline", "args": { "elements": 312 } },
+    { "ph": "E", "name": "Layout", "pid": 2, "tid": 7, "ts": 6200, "args": {} },
+    { "ph": "E", "name": "Navigate", "pid": 2, "tid": 7, "ts": 7000, "args": {} },
+
+    { "ph": "X", "name": "DrawFrame", "pid": 2, "tid": 9, "ts": 6400, "dur": 900, "cat": "cc", "args": {} },
+    { "ph": "i", "name": "VSync", "pid": 2, "tid": 9, "ts": 6300, "args": {} }
+  ]
+}

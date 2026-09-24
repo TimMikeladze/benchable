@@ -48,6 +48,10 @@ export const metricPayloadSchema = z.union([
 
 export const spanPayloadSchema = z.object({
   id: z.string().min(1).max(120),
+  /** Groups spans into traces inside one run. Absent means the run is a single trace. */
+  traceId: z.string().min(1).max(120).optional(),
+  /** Emitting service, when the format knows it (`service.name`, process, endpoint). */
+  service: z.string().min(1).max(200).optional(),
   parentId: z.string().min(1).max(120).nullish(),
   name: z.string().min(1).max(200),
   startMs: finite.nonnegative(),

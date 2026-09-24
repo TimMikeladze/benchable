@@ -46,10 +46,16 @@ For each field, the first source that has a value wins:
 
 ## Formats
 
-`record` and `import` detect these 13 formats: `benchable` (native JSON), `go-bench`,
+`record` and `import` detect these 16 formats: `benchable` (native JSON), `go-bench`,
 `hyperfine`, `pytest-benchmark`, `google-benchmark`, `criterion`, `vitest-bench`, `k6`,
-`lighthouse`, `jmh`, `prometheus`, `csv` and `otlp-trace`. Run `formats` in cloud mode for how
+`lighthouse`, `jmh`, `prometheus`, `csv`, `otlp-trace`, `jaeger`, `zipkin` and `chrome-trace`.
+Run `formats` in cloud mode for how
 to produce each one.
+
+Files over 4 MB (a big trace export) upload to Vercel Blob with a server-minted grant and
+import by reference — automatic in `record`; nothing to configure. On a server without Blob
+configured the CLI falls back to the direct body POST and says so if the size is refused.
+Artifacts (`--artifact`, `upload`) take the same path automatically over 4 MB.
 
 Native JSON, for a number you measured that no tool formats:
 

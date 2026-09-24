@@ -9,7 +9,8 @@ that runs outside the server:
 - **CLI** (`benchable`). It records runs in the cloud or self-hosted, or offline in `.benchable/`
   with a self-contained HTML report, and syncs the local history up later.
 - **SDK**: a typed, dependency-free client for the API.
-- **Formats and statistics**: the 13 benchmark-output parsers, and the Welch / Mann–Whitney
+- **Formats and statistics**: the 16 benchmark-output parsers (13 benchmark tools plus the
+  OTLP, Jaeger, Zipkin and Chrome/Perfetto trace formats), and the Welch / Mann–Whitney
   comparison behind every verdict. The Benchable server runs this same code.
 
 ## Agent skill
@@ -118,7 +119,10 @@ A non-2xx response throws `BenchableError`, which carries `status` and the parse
 | `jmh` | `java -jar benchmarks.jar -rf json -rff bench.json` |
 | `prometheus` | `curl -s http://localhost:9090/metrics` |
 | `csv` | `name,value[,unit[,lower\|higher]]` |
-| `otlp-trace` | OTLP/JSON `ResourceSpans` |
+| `otlp-trace` | OTLP/JSON `ResourceSpans` — spans, trace ids, service names |
+| `jaeger` | Jaeger JSON export — spans, trace ids, services from processes |
+| `zipkin` | Zipkin v2 JSON — spans, trace ids, services from endpoints |
+| `chrome-trace` | Chrome DevTools / Perfetto trace-events JSON — one waterfall |
 
 Detection is automatic. Where the tool reports raw samples (hyperfine's `times`, go-bench under
 `-count`, criterion), they are kept, so a comparison can use Mann–Whitney U instead of Welch's t.

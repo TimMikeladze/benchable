@@ -1,6 +1,6 @@
 ---
 name: benchable
-description: Record benchmark results as Benchable runs and get a statistical verdict (regressed, improved or unchanged) with a chart link. Use it whenever you measure performance before and after a change (a refactor, a perf fix, bundle size, build time, prompt latency, hyperfine, go test -bench, vitest bench, pytest-benchmark, criterion, k6, Lighthouse), or when the user asks "did this make it slower?". It works in Benchable cloud or self-hosted, and offline on the filesystem with a self-contained HTML report.
+description: Record benchmark results as Benchable runs and get a statistical verdict (regressed, improved or unchanged) with a chart link. Use it whenever you measure performance before and after a change (a refactor, a perf fix, bundle size, build time, prompt latency, hyperfine, go test -bench, vitest bench, pytest-benchmark, criterion, k6, Lighthouse), when the user asks "did this make it slower?", or when they have a trace to read (OTLP, Jaeger, Zipkin, Chrome DevTools exports) and want the waterfall or the span that moved. It works in Benchable cloud or self-hosted, and offline on the filesystem with a self-contained HTML report.
 ---
 
 # Benchable
@@ -20,7 +20,9 @@ Use the path of the directory that holds this SKILL.md, for example
 - **Never fabricate numbers.** Record only output that a tool you ran actually produced. Never
   hand-write metrics JSON for something you did not measure.
 - **Wrap the tool's own output.** Run hyperfine, `go test -bench` or vitest bench and pass the
-  file to `record`. The format is detected, and 13 formats are supported (`$BENCHABLE formats`).
+  file to `record`. The format is detected, and 16 formats are supported (`$BENCHABLE formats`)
+  — including trace exports (OTLP/JSON, Jaeger, Zipkin, Chrome/Perfetto trace-events), which
+  become a run with a trace waterfall rather than metrics alone.
 - **Don't eyeball numbers.** The verdict comes from `record`, `compare_runs` or
   `detect_change_points`. Report what it says, including "not significant".
 - **Keep metric names stable across runs**, or there is no baseline to compare with. For
@@ -93,6 +95,15 @@ $BENCHABLE record --file /tmp/bench.txt --label baseline
 ```bash
 npx vitest bench --run --outputJson /tmp/bench.json
 $BENCHABLE record --file /tmp/bench.json --label baseline
+```
+
+**a trace**: if what the user measured is a request, export it and record it the same way —
+the run page shows the waterfall, and a before/after pair attributes the change to a span.
+
+```bash
+# OTLP/JSON from a collector, a Jaeger JSON export, a Zipkin v2 array, or a Chrome
+# DevTools/Perfetto trace-events file — all detected:
+$BENCHABLE record --file /tmp/trace.json --label baseline
 ```
 
 ## Answering "did my change make it slower?"

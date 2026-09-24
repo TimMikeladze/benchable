@@ -31,6 +31,9 @@ describe("format detection", () => {
     ["prometheus.txt", "prometheus"],
     ["bench.csv", "csv"],
     ["otlp-trace.json", "otlp-trace"],
+    ["jaeger.json", "jaeger"],
+    ["zipkin.json", "zipkin"],
+    ["chrome-trace.json", "chrome-trace"],
   ];
 
   for (const [file, expected] of cases) {
@@ -317,6 +320,119 @@ describe("otlp-trace", () => {
   test("attributes are flattened from the OTLP value wrappers", () => {
     const db = run.spans?.find((span) => span.id === "db");
     expect(db?.attributes).toMatchObject({ "db.rows": 128 });
+  });
+
+  test("the service name comes from the resource", () => {
+    expect(run.spans?.every((span) => span.service === "checkout")).toBe(true);
+  });
+});
+
+describe("jaeger", () => {
+  const { run } = parse("jaeger.json");
+
+  test("carries trace ids, so two traces stay separate", () => {
+    expect(run.spans).toHaveLength(3);
+    const ids = new Set(run.spans?.map((span) => span.traceId));
+    expect([...ids].sort()).toEqual(["trace-a", "trace-b"]);
+  });
+
+  test("each trace is rebased to its own zero", () => {
+    const req1 = run.spans?.find((span) => span.id === "req1");
+    const req2 = run.spans?.find((span) => span.id === "req2");
+    expect(req1).toMatchObject({ startMs: 0, durationMs: 240 });
+    expect(req2).toMatchObject({ startMs: 0, durationMs: 90 });
+  });
+
+  test("the parent comes from a CHILD_OF reference", () => {
+    expect(run.spans?.find((span) => span.id === "query1")?.parentId).toBe("req1");
+  });
+
+  test("process gives the service and its tags become attributes", () => {
+    const query = run.spans?.find((span) => span.id === "query1");
+    expect(query?.service).toBe("postgres");
+    expect(query?.attributes).toMatchObject({ "db.rows": 128 });
+    const request = run.spans?.find((span) => span.id === "req1");
+    expect(request?.service).toBe("api");
+    expect(request?.attributes).toMatchObject({ "host.name": "api-1", "http.method": "GET" });
+  });
+
+  test("an error tag marks the span", () => {
+    expect(run.spans?.find((span) => span.id === "query1")?.status).toBe("error");
+    expect(run.spans?.find((span) => span.id === "req1")?.status).toBe("ok");
+  });
+
+  test("summary metrics include the trace count", () => {
+    expect(run.metrics["trace.trace_count"]?.value).toBe(2);
+    expect(run.metrics["trace.span_count"]?.value).toBe(3);
+    expect(run.metrics["trace.error_spans"]?.value).toBe(1);
+  });
+});
+
+describe("zipkin", () => {
+  const { run } = parse("zipkin.json");
+
+  test("microsecond timings convert and rebase per trace", () => {
+    expect(run.spans).toHaveLength(3);
+    const root = run.spans?.find((span) => span.id === "root1");
+    expect(root).toMatchObject({ startMs: 0, durationMs: 310, parentId: null });
+  });
+
+  test("a shared (server-half) duplicate id is folded away", () => {
+    expect(run.spans?.filter((span) => span.id === "db1")).toHaveLength(1);
+    expect(run.spans?.find((span) => span.id === "db1")?.service).toBe("storefront");
+  });
+
+  test("tags become attributes and the remote endpoint is kept", () => {
+    const db = run.spans?.find((span) => span.id === "db1");
+    expect(db?.attributes).toMatchObject({ "sql.query": "select * from orders", "peer.service": "postgres" });
+  });
+
+  test("a string error tag marks the span", () => {
+    expect(run.spans?.find((span) => span.id === "cache1")?.status).toBe("error");
+    expect(run.spans?.find((span) => span.id === "root1")?.status).toBe("ok");
+  });
+
+  test("timestamp microseconds become the run's startedAt", () => {
+    expect(run.startedAt?.toISOString()).toBe(new Date(1789450000000).toISOString());
+  });
+});
+
+describe("chrome-trace", () => {
+  const { run } = parse("chrome-trace.json");
+
+  test("X events and matched B/E pairs become spans; other phases are skipped", () => {
+    const names = run.spans?.map((span) => span.name).sort();
+    expect(names).toEqual(["DrawFrame", "Layout", "Navigate", "ParseHTML", "UpdateLayoutTree"]);
+  });
+
+  test("nesting follows the per-thread stack", () => {
+    const spans = run.spans!;
+    const navigate = spans.find((span) => span.name === "Navigate");
+    const layout = spans.find((span) => span.name === "Layout");
+    const update = spans.find((span) => span.name === "UpdateLayoutTree");
+    expect(layout?.parentId).toBe(navigate?.id);
+    expect(update?.parentId).toBe(layout?.id);
+    // A different thread is a parallel root, not a child.
+    expect(spans.find((span) => span.name === "DrawFrame")?.parentId).toBeNull();
+  });
+
+  test("B/E duration is the pair's span", () => {
+    expect(run.spans?.find((span) => span.name === "Navigate")).toMatchObject({
+      startMs: 0,
+      durationMs: 6,
+    });
+    expect(run.spans?.find((span) => span.name === "Layout")).toMatchObject({ startMs: 3.5, durationMs: 1.7 });
+  });
+
+  test("metadata events give the service and thread name", () => {
+    const parse = run.spans?.find((span) => span.name === "ParseHTML");
+    expect(parse?.service).toBe("Renderer");
+    expect(parse?.attributes).toMatchObject({ "thread.name": "CrRendererMain", length: 4200 });
+  });
+
+  test("the whole file is one trace with no trace ids", () => {
+    expect(run.spans?.every((span) => span.traceId === undefined)).toBe(true);
+    expect(run.metrics["trace.trace_count"]).toBeUndefined();
   });
 });
 

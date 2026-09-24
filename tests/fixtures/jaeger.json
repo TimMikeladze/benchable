@@ -1,0 +1,57 @@
+{
+  "data": [
+    {
+      "traceID": "trace-a",
+      "spans": [
+        {
+          "traceID": "trace-a",
+          "spanID": "req1",
+          "operationName": "GET /api/orders",
+          "references": [],
+          "startTime": 1789450000000000,
+          "duration": 240000,
+          "tags": [{ "key": "http.method", "type": "string", "value": "GET" }],
+          "processID": "p1",
+          "logs": []
+        },
+        {
+          "traceID": "trace-a",
+          "spanID": "query1",
+          "operationName": "SELECT orders",
+          "references": [{ "refType": "CHILD_OF", "traceID": "trace-a", "spanID": "req1" }],
+          "startTime": 1789450000200000,
+          "duration": 180000,
+          "tags": [
+            { "key": "db.rows", "type": "int64", "value": 128 },
+            { "key": "error", "type": "bool", "value": true }
+          ],
+          "processID": "p2",
+          "logs": []
+        }
+      ],
+      "processes": {
+        "p1": { "serviceName": "api", "tags": [{ "key": "host.name", "type": "string", "value": "api-1" }] },
+        "p2": { "serviceName": "postgres", "tags": [] }
+      }
+    },
+    {
+      "traceID": "trace-b",
+      "spans": [
+        {
+          "traceID": "trace-b",
+          "spanID": "req2",
+          "operationName": "GET /api/cart",
+          "references": [],
+          "startTime": 1789450100000000,
+          "duration": 90000,
+          "tags": [],
+          "processID": "p1",
+          "logs": []
+        }
+      ],
+      "processes": {
+        "p1": { "serviceName": "api", "tags": [] }
+      }
+    }
+  ]
+}
