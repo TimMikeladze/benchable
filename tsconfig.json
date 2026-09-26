@@ -12,5 +12,5 @@
     "resolveJsonModule": true,
     "types": ["bun"]
   },
-  "include": ["src", "tests", "scripts"]
+  "include": ["src", "tests", "scripts", "tsup.config.ts"]
 }

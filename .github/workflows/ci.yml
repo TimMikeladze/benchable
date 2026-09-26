@@ -21,3 +21,7 @@ jobs:
         with:
           node-version: 18
       - run: node skills/benchable/scripts/benchable.mjs help
+      # The published package is dist/ (ESM + CJS + types); check it resolves everywhere.
+      - run: bun run build
+      - run: npx -y @arethetypeswrong/cli --pack . --exclude-entrypoints package.json
+      - run: node -e "require('benchable'); require('benchable/formats')" && node --input-type=module -e "await import('benchable'); await import('benchable/cli')"

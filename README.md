@@ -139,8 +139,8 @@ Detection is automatic. Where the tool reports raw samples (hyperfine's `times`,
 | `benchable/format` | Value, duration and percent formatting |
 | `benchable/cli` | Config resolution, login, local runs, sync and the report, as functions |
 
-The entry points ship as TypeScript source. They work directly under Bun, Deno, and bundlers
-that resolve `.ts` (for Next.js, add `transpilePackages: ["benchable"]`).
+Every entry point ships compiled as ESM and CommonJS with type declarations, so it works under
+Node 18+ (`import` or `require`), Bun, Deno and any bundler, with no transpile step.
 
 ## Development
 
@@ -149,6 +149,8 @@ bun install
 bun test
 bun run typecheck
 bun run skill:build   # rebuilds skills/benchable/scripts/benchable.mjs; CI fails if it is stale
+bun run build         # tsup: dist/ with ESM, CommonJS and .d.ts for every export (what npm ships)
+bun run release       # bumpp: pick version, commit, tag, push (then `npm publish`)
 ```
 
 Design notes are in [`docs/design.md`](docs/design.md). The Benchable server consumes this repo

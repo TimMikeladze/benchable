@@ -2,13 +2,6 @@
   "name": "benchable",
   "version": "0.1.0",
   "description": "Benchable client: the CLI, the agent skill, a typed SDK, and the benchmark format parsers and statistics behind every verdict.",
-  "license": "MIT",
-  "type": "module",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/TimMikeladze/benchable"
-  },
-  "homepage": "https://benchable.sh",
   "keywords": [
     "benchmarking",
     "performance",
@@ -17,20 +10,95 @@
     "agent-skill",
     "mcp"
   ],
+  "author": "Tim Mikeladze <tim.mikeladze@gmail.com>",
+  "license": "MIT",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TimMikeladze/benchable.git"
+  },
+  "bugs": {
+    "url": "https://github.com/TimMikeladze/benchable/issues"
+  },
+  "homepage": "https://benchable.sh",
   "bin": {
     "benchable": "./skills/benchable/scripts/benchable.mjs"
   },
   "exports": {
-    ".": "./src/index.ts",
-    "./formats": "./src/formats/index.ts",
-    "./statistics": "./src/statistics.ts",
-    "./comparison": "./src/comparison.ts",
-    "./schema": "./src/schema.ts",
-    "./format": "./src/format.ts",
-    "./cli": "./src/cli/api.ts"
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./formats": {
+      "import": {
+        "types": "./dist/formats.d.ts",
+        "default": "./dist/formats.js"
+      },
+      "require": {
+        "types": "./dist/formats.d.cts",
+        "default": "./dist/formats.cjs"
+      }
+    },
+    "./statistics": {
+      "import": {
+        "types": "./dist/statistics.d.ts",
+        "default": "./dist/statistics.js"
+      },
+      "require": {
+        "types": "./dist/statistics.d.cts",
+        "default": "./dist/statistics.cjs"
+      }
+    },
+    "./comparison": {
+      "import": {
+        "types": "./dist/comparison.d.ts",
+        "default": "./dist/comparison.js"
+      },
+      "require": {
+        "types": "./dist/comparison.d.cts",
+        "default": "./dist/comparison.cjs"
+      }
+    },
+    "./schema": {
+      "import": {
+        "types": "./dist/schema.d.ts",
+        "default": "./dist/schema.js"
+      },
+      "require": {
+        "types": "./dist/schema.d.cts",
+        "default": "./dist/schema.cjs"
+      }
+    },
+    "./format": {
+      "import": {
+        "types": "./dist/format.d.ts",
+        "default": "./dist/format.js"
+      },
+      "require": {
+        "types": "./dist/format.d.cts",
+        "default": "./dist/format.cjs"
+      }
+    },
+    "./cli": {
+      "import": {
+        "types": "./dist/cli.d.ts",
+        "default": "./dist/cli.js"
+      },
+      "require": {
+        "types": "./dist/cli.d.cts",
+        "default": "./dist/cli.cjs"
+      }
+    },
+    "./package.json": "./package.json"
   },
   "files": [
-    "src",
+    "dist",
     "skills",
     "examples",
     "README.md",
@@ -40,17 +108,39 @@
     "typecheck": "tsc --noEmit",
     "test": "bun test",
     "skill:build": "bun run scripts/build-skill.ts",
-    "benchable": "bun run src/cli/benchable.ts"
+    "benchable": "bun run src/cli/benchable.ts",
+    "release": "bumpp --commit --push --tag",
+    "prepublishOnly": "bun run typecheck && bun test && bun run skill:build && bun run build",
+    "build": "tsup"
   },
   "dependencies": {
     "zod": "^4.5.4"
   },
   "devDependencies": {
     "@types/bun": "^1.4.2",
+    "bumpp": "^12.3.0",
+    "tsup": "^8.5.1",
     "typescript": "^5"
   },
   "engines": {
     "node": ">=18"
   },
-  "packageManager": "bun@1.4.0"
+  "packageManager": "bun@1.4.0",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "typesVersions": {
+    "*": {
+      "dist/*": [
+        "./dist/*"
+      ],
+      "*": [
+        "./dist/*.d.ts"
+      ]
+    }
+  },
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  }
 }
