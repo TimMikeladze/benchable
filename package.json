@@ -1,6 +1,6 @@
 {
   "name": "benchable",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Benchable client: the CLI, the agent skill, a typed SDK, and the benchmark format parsers and statistics behind every verdict.",
   "keywords": [
     "benchmarking",
