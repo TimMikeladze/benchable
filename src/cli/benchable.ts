@@ -133,6 +133,19 @@ async function request(
 }
 
 /**
+ * Send bytes to an upload grant's presigned URL with a plain `fetch`, and return the stored
+ * object's URL to import or adopt by. No storage SDK: the server signs the URL.
+ */
+async function putPresigned(uploadUrl: string, body: BodyInit, contentType: string): Promise<string> {
+  const response = await fetch(uploadUrl, { method: "PUT", headers: { "content-type": contentType }, body });
+  const text = await response.text();
+  if (!response.ok) throw new Error(`upload failed (${response.status}): ${text.slice(0, 200)}`);
+  const stored = JSON.parse(text) as { url?: unknown };
+  if (typeof stored.url !== "string") throw new Error("upload response had no url");
+  return stored.url;
+}
+
+/**
  * Attach one artifact to a run, direct or — above the request-body threshold — via an upload
  * grant: mint, PUT to Blob, adopt by reference. Same fallback rules as `record`'s import
  * path (docs/large-uploads.md).
@@ -180,25 +193,15 @@ async function attachArtifact(
   }
   if (grantResponse.status >= 400) return grantResponse;
 
-  const grant = JSON.parse(grantResponse.body) as {
-    token: string;
-    pathname: string;
-    access: "private";
-    artifactId: string;
-  };
-  const { put } = await import("@vercel/blob/client");
-  const uploaded = await put(grant.pathname, bytes, {
-    access: grant.access,
-    token: grant.token,
-    contentType: "application/octet-stream",
-  });
+  const grant = JSON.parse(grantResponse.body) as { uploadUrl: string; artifactId: string };
+  const uploaded = await putPresigned(grant.uploadUrl, bytes, "application/octet-stream");
 
   return request(`/api/v1/runs/${encodeURIComponent(runId)}/artifacts?${query.toString()}`, {
     url,
     key,
     method: "POST",
     headers: { "content-type": "application/json", accept: "text/plain" },
-    body: JSON.stringify({ url: uploaded.url, artifactId: grant.artifactId }),
+    body: JSON.stringify({ url: uploaded, artifactId: grant.artifactId }),
   });
 }
 
@@ -490,18 +493,8 @@ async function main() {
       });
       if (grantResponse.status < 400) {
         try {
-          const grant = JSON.parse(grantResponse.body) as {
-            token: string;
-            pathname: string;
-            access: "private";
-          };
-          const { put } = await import("@vercel/blob/client");
-          const uploaded = await put(grant.pathname, raw, {
-            access: grant.access,
-            token: grant.token,
-            contentType: "application/json",
-          });
-          body = JSON.stringify({ url: uploaded.url });
+          const grant = JSON.parse(grantResponse.body) as { uploadUrl: string };
+          body = JSON.stringify({ url: await putPresigned(grant.uploadUrl, raw, "application/json") });
           contentType = "application/json";
         } catch (error) {
           fail(`upload failed: ${error instanceof Error ? error.message : String(error)}`);

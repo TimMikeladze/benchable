@@ -43,8 +43,7 @@
     "benchable": "bun run src/cli/benchable.ts"
   },
   "dependencies": {
-    "zod": "^4.5.4",
-    "@vercel/blob": "^2.8.0"
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@types/bun": "^1.4.2",
