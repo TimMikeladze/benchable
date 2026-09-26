@@ -1,17 +1,13 @@
 /**
  * Builds `skills/benchable/scripts/benchable.mjs`: the CLI as one Node 18+ file with no
- * dependencies, the report's chart bundle (React + TanStack Charts) inlined. The skill runs
+ * dependencies. The skill runs
  * this file, so it is committed; CI rebuilds it and fails on a diff. See docs/agent-skill.md.
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
-import { buildReportBundle } from "../src/cli/local/bundle";
-
 const root = join(import.meta.dir, "..");
 const out = join(root, "skills/benchable/scripts/benchable.mjs");
-
-const reportBundle = await buildReportBundle();
 
 const result = await Bun.build({
   entrypoints: [join(root, "src/cli/benchable.ts")],
@@ -19,7 +15,6 @@ const result = await Bun.build({
   format: "esm",
   minify: true,
   define: {
-    __BENCHABLE_REPORT_BUNDLE__: JSON.stringify(reportBundle),
     "process.env.NODE_ENV": '"production"',
   },
 });

@@ -35,7 +35,7 @@ export function targetKey(target: Pick<SyncTarget, "url" | "project">) {
   return `${target.url}#${target.project ?? ""}`;
 }
 
-/** idempotencyKey → cloud run URL for the given target, for the report's "synced" links. */
+/** idempotencyKey → cloud run URL for the given target, for linking synced runs. */
 export function cloudUrls(root: string, target: Pick<SyncTarget, "url" | "project"> | null): Record<string, string> {
   if (!target) return {};
   const entries = readSyncState(root)[targetKey(target)] ?? {};

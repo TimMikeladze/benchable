@@ -27,7 +27,7 @@ Use the path of the directory that holds this SKILL.md, for example
   `detect_change_points`. Report what it says, including "not significant".
 - **Keep metric names stable across runs**, or there is no baseline to compare with. For
   hyperfine, always pass `-n <name>`, because the command text is part of the metric key.
-- **Show the user every time.** Give them the run URL (cloud) or the `report.html` path (local).
+- **Show the user every time.** Give them the run URL (cloud) or the verdict and run file path (local).
 
 ## 1. Detect the mode and tell the user
 
@@ -38,8 +38,8 @@ $BENCHABLE status
 - `mode: cloud`: a URL and key resolved (from env, `.benchable/config.json`, or an earlier login).
   Results become runs in their project. If the `benchable` MCP server is configured, you may use
   its tools. Otherwise use the CLI.
-- `mode: local`: the user chose not to use an account. Runs go to `.benchable/runs/`, and you
-  get the report at `.benchable/report.html`.
+- `mode: local`: the user chose not to use an account. Runs go to `.benchable/runs/`, and the
+  verdict is printed on record.
 - `mode: unconfigured`: ask the user once: "Connect Benchable to chart these results? One click
   in the browser." Then do one of these:
   - If they say yes: `$BENCHABLE login --client <claude-code|codex|opencode> --no-wait`. It opens
@@ -118,5 +118,5 @@ $BENCHABLE record --file /tmp/trace.json --label baseline
 - `references/cli.md`: every command, flag, config file and exit code.
 - `references/mcp.md`: MCP setup for Claude Code, Codex and OpenCode, and the 18 tools.
 - `references/http.md`: the raw HTTP API, for agents with no Node and no MCP.
-- `references/local-mode.md`: the `.benchable/` layout, report.html, and sync semantics.
+- `references/local-mode.md`: the `.benchable/` layout and sync semantics.
 - `references/verdicts.md`: how to read and explain a verdict honestly.

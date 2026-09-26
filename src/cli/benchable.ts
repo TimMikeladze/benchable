@@ -19,7 +19,7 @@
  *   benchable record --file out.json [--label] [--artifact f]...   cloud, or local when offline
  *   benchable comment --run last --body "Automated analysis: …"
  *   benchable mcp --agent claude-code|codex|opencode
- *   benchable local init|report|sync
+ *   benchable local init|sync
  *
  * Reads BENCHABLE_URL and BENCHABLE_KEY, then `.benchable/config.json`, then the credentials
  * `benchable login` saved. Exits 1 when a run regressed, which is the whole reason to have it
@@ -35,12 +35,9 @@ import { FormatParseError, isFormatId, type FormatId } from "../formats";
 import { benchableDir, DEFAULT_URL, maskKey, readProjectConfig, resolveConfig, writeProjectConfig, type ResolvedConfig } from "./config";
 import { gitInfo } from "./git";
 import { LOGIN_CLIENTS, login } from "./login";
-import { loadReportBundle } from "./local/bundle";
 import { formatLocalVerdict } from "./local/format";
-import { renderReport } from "./local/report";
-import { buildReportData } from "./local/report-data";
-import { listLocalRuns, recordLocal, verdictHistory, type RecordResult } from "./local/store";
-import { cloudUrls, syncLocal } from "./local/sync";
+import { recordLocal, type RecordResult } from "./local/store";
+import { syncLocal } from "./local/sync";
 import { MCP_AGENTS, mcpSnippet, type McpAgent } from "./mcp-config";
 
 interface Options {
@@ -263,17 +260,6 @@ function str(options: Options, flag: string): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
 
-async function writeReport(config: ResolvedConfig): Promise<string> {
-  const runs = listLocalRuns(config.root);
-  const target = config.url ? { url: config.url, project: config.project } : null;
-  const data = buildReportData(basename(config.root), verdictHistory(runs), {
-    cloudUrls: cloudUrls(config.root, target),
-  });
-  const path = join(benchableDir(config.root), "report.html");
-  writeFileSync(path, renderReport(data, await loadReportBundle()));
-  return path;
-}
-
 function describeMode(config: ResolvedConfig): string {
   if (config.mode === "cloud") {
     return [
@@ -284,7 +270,7 @@ function describeMode(config: ResolvedConfig): string {
     ].join("\n");
   }
   if (config.mode === "local") {
-    return `mode: local\nruns: ${relative(process.cwd(), join(benchableDir(config.root), "runs")) || "."}\nreport: ${join(benchableDir(config.root), "report.html")}`;
+    return `mode: local\nruns: ${relative(process.cwd(), join(benchableDir(config.root), "runs")) || "."}`;
   }
   return [
     "mode: unconfigured",
@@ -325,10 +311,9 @@ async function recordLocally(
   } catch (error) {
     fail(error instanceof FormatParseError || error instanceof Error ? error.message : String(error));
   }
-  const report = await writeReport(config);
   if (options.json === true) {
     process.stdout.write(
-      `${JSON.stringify({ mode: "local", why, file: result.file, stem: result.stem, format: result.format, report, verdict: result.verdict }, null, 2)}\n`,
+      `${JSON.stringify({ mode: "local", why, file: result.file, stem: result.stem, format: result.format, verdict: result.verdict }, null, 2)}\n`,
     );
   } else {
     process.stdout.write(
@@ -337,7 +322,6 @@ async function recordLocally(
         formatLocalVerdict(result.verdict),
         "",
         `file: ${result.file}`,
-        `report: ${report}`,
         ...(result.run.artifacts.length ? [`artifacts: ${result.run.artifacts.map((a) => a.path).join(", ")}`] : []),
         "",
       ].join("\n"),
@@ -427,16 +411,11 @@ async function main() {
 
   if (command === "local") {
     const config = resolveConfig(where());
-    const sub = positionals[0] ?? "report";
+    const sub = positionals[0];
     if (sub === "init") {
       const { url: _url, project: _project, key: _key, ...rest } = readProjectConfig(config.root);
       writeProjectConfig(config.root, { ...rest, mode: "local" });
       process.stdout.write(`Local mode. Runs go to ${join(benchableDir(config.root), "runs")}.\n`);
-      process.exit(0);
-    }
-    if (sub === "report") {
-      const path = await writeReport(config);
-      process.stdout.write(`${path}\n`);
       process.exit(0);
     }
     if (sub === "sync") {
@@ -453,7 +432,6 @@ async function main() {
             ),
         },
       );
-      await writeReport(config);
       const failed = outcomes.filter((o) => o.error).length;
       const created = outcomes.filter((o) => !o.error && !o.idempotent).length;
       process.stdout.write(
@@ -461,7 +439,7 @@ async function main() {
       );
       process.exit(failed > 0 ? 2 : 0);
     }
-    fail(`Unknown \`local ${sub}\`. Use init, report or sync.`);
+    fail(`Unknown \`local ${sub}\`. Use init or sync.`);
   }
 
   if (command === "record") {
@@ -602,7 +580,7 @@ async function main() {
         "benchable comment --run <runId|last> --body <text> [--metric <key>]",
         "benchable mcp     --agent claude-code|codex|opencode",
         "benchable key     (prints the resolved key, for `export BENCHABLE_KEY=$(benchable key)`)",
-        "benchable local   init | report | sync",
+        "benchable local   init | sync",
         "",
         "Environment: BENCHABLE_URL, BENCHABLE_KEY (else .benchable/config.json, else `benchable login`)",
         "Exit codes: 0 clean, 1 regression, 2 error",

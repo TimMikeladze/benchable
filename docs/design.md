@@ -20,8 +20,8 @@ duplicated.
   same file is the `benchable` package's `bin`.
   The bundle is committed, and CI rebuilds it and fails on a diff.
 - **Logic lives in the CLI, not in SKILL.md.** The skill decides nothing that a command could:
-  `status` reports the mode, `record` records in whichever mode is active, `local report` and
-  `local sync` handle the rest. SKILL.md teaches the loop. Long material goes in
+  `status` reports the mode, `record` records in whichever mode is active, `local sync` handles
+  the rest. SKILL.md teaches the loop. Long material goes in
   `references/*.md`, loaded on demand.
 - **The agent never builds JSON by hand.** `record --file` takes any of the 13 formats that
   `src/formats` detects (hyperfine, go-bench, vitest-bench, …). The same parser runs locally, so
@@ -93,7 +93,6 @@ The next `login` resumes it. The skill uses this so it doesn't block on a 10-min
   config.json                        { "mode": "local" } or { "url", "project" }
   runs/20260923T101500Z-baseline.json   native payload (+ idempotencyKey, artifacts)
   artifacts/20260923T101500Z-baseline/flame.svg
-  report.html                        self-contained, regenerated after every record
   sync.json                          { "<url>#<project>": { "<idempotencyKey>": "<runId>" } }
 ```
 
@@ -112,13 +111,11 @@ latest earlier run, else none (`first run`). `--baseline <stem>` overrides it. E
 through the same `classify()` the server uses: the direction is the payload's or inferred from
 the key, and the band is 5%. That means Mann–Whitney when both runs carry sample vectors (for
 example hyperfine's `times`) and Welch's t on `{mean, stddev, n}` otherwise. There is no noise
-band learned from history and no false-discovery control, and the report says so.
+band learned from history and no false-discovery control, and the CLI output says so.
 
-**report.html.** One file, with no network requests. The run table and verdicts are
-server-rendered HTML, so the report reads without JS. The data is embedded as JSON, and the
-inlined bundle renders one TanStack Charts line per metric across runs, with points coloured by
-verdict, through the React adapter. It themes light or dark from `prefers-color-scheme`, and a
-toggle stores the choice in `localStorage`.
+**No local report.** Local mode prints the verdict and writes run JSON, nothing else. Charts
+live in the app: `local sync` uploads the history, or local watch reads `.benchable/runs/`
+directly. That keeps the CLI free of React and chart dependencies.
 
 ## Sync semantics
 
@@ -140,9 +137,7 @@ file. Local watch does not carry artifacts, so `local sync` is the lossless path
 - `src/cli/config.ts`: config resolution and mode detection. Pure: env, cwd and home are injected.
 - `src/cli/login.ts`: the device-flow client. The server side (`/api/v1/connect`, the `/connect`
   approval page) lives in the Benchable app.
-- `src/cli/local/store.ts` (record, baselines, verdicts), `sync.ts`, `report.ts` +
-  `report-client.tsx` (the page and its chart bundle), and `src/report/chart.ts` (the only
-  module that imports TanStack Charts).
+- `src/cli/local/store.ts` (record, baselines, verdicts), and `sync.ts`.
 - `src/formats`, `src/schema.ts`, `src/comparison.ts`, `src/statistics.ts`: shared with the
   server, which imports them from this package.
 - `scripts/build-skill.ts`: builds the skill's `benchable.mjs`.

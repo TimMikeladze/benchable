@@ -14,7 +14,6 @@ CLI as `npx benchable` (the `benchable` package, github.com/TimMikeladze/benchab
 | `mcp --agent claude-code\|codex\|opencode` | Prints the MCP config for the resolved server. |
 | `key` | Prints the resolved key, only so you can run `export BENCHABLE_KEY=$(… key)` before wiring MCP. |
 | `local init` | Chooses local mode (writes `{"mode":"local"}` to `.benchable/config.json`). |
-| `local report` | Regenerates `.benchable/report.html` and prints its path. |
 | `local sync` | Uploads every local run and artifact to the connected project. Safe to repeat. |
 
 ## Cloud commands

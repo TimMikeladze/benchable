@@ -1,12 +1,10 @@
-/** The local-mode writer, verdicts and report.html (docs/agent-skill.md). */
+/** The local-mode writer and verdicts (docs/agent-skill.md). */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { renderReport } from "../src/cli/local/report";
-import { buildReportData } from "../src/cli/local/report-data";
-import { listLocalRuns, recordLocal, verdictHistory } from "../src/cli/local/store";
+import { listLocalRuns, recordLocal } from "../src/cli/local/store";
 import { runPayloadSchema } from "../src/schema";
 import { parseRaw } from "../src/formats";
 
@@ -82,23 +80,5 @@ describe("recordLocal", () => {
   test("refuses input no adapter recognizes, writing nothing", () => {
     expect(() => recordLocal({ root, raw: "hello, not a benchmark\x00" })).toThrow();
     expect(listLocalRuns(root)).toHaveLength(0);
-  });
-});
-
-describe("report.html", () => {
-  test("embeds data safely and renders verdicts without JavaScript", () => {
-    recordLocal({ root, raw: hyperfine(jitter(0.01)), label: "before", now: new Date("2026-09-23T10:00:00Z") });
-    recordLocal({ root, raw: hyperfine(jitter(0.02)), label: "</script><b>after", now: new Date("2026-09-23T10:01:00Z") });
-    const data = buildReportData("demo", verdictHistory(listLocalRuns(root)), { now: new Date("2026-09-23T11:00:00Z") });
-    expect(data.metrics.find((m) => m.key === "hyperfine.work.mean_ms")?.points.map((p) => p.verdict)).toEqual(["neutral", "regressed"]);
-
-    const html = renderReport(data, "window.__bundle = '</script>';");
-    // One closing tag per script element: neither the label nor the bundle can end one early.
-    expect(html.match(/<\/script>/g)).toHaveLength(3);
-    expect(html).toContain("&lt;/script&gt;&lt;b&gt;after");
-    expect(html).toContain("1 metric regressed against 20260923T100000Z-before");
-    expect(html).toContain('data-chart="0"');
-    expect(html).toContain("prefers-color-scheme: dark");
-    expect(html).not.toMatch(/<(link|script)[^>]+(src|href)=["']https?:/);
   });
 });

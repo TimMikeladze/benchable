@@ -21,7 +21,7 @@ How to explain it to the user:
    - `ns` / "not significant": the difference could be noise. Don't claim it.
 4. Flag caveats that the output mentions: a baseline from another environment, or budget
    failures.
-5. Link the run (`view:` URL) or `report.html`.
+5. Link the run (`view:` URL) or give the local run file path.
 
 Never round a regression away, and never call a non-significant move an improvement. If the
 numbers are noisy (a stddev near the effect size), say so and propose a quieter measurement:

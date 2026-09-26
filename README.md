@@ -28,8 +28,8 @@ there is nothing else to install. On each use the agent checks which mode it is 
   API key is saved to `~/.config/benchable/credentials.json` (mode 0600). It is a device-code
   flow, so it works over SSH. For a self-hosted server, pass `--url https://bench.internal`.
 - **local**: there's no account, or no network. Runs are saved as native JSON in
-  `.benchable/runs/`, with verdicts from the same statistics. `.benchable/report.html` is one
-  page with charts in light and dark themes.
+  `.benchable/runs/`, with verdicts from the same statistics. To chart them, point the app's
+  local watch at that folder or run `benchable local sync`.
 
 The loop is: baseline, change, after, verdict, link.
 
@@ -62,7 +62,7 @@ benchable status                     # which mode, and where each setting came f
 benchable login                      # connect in the browser
 benchable record --file out.json     # any supported format; cloud, or local when offline
 benchable comment --run last --body "Automated analysis: …"
-benchable local init | report | sync
+benchable local init | sync
 
 # cloud-only commands
 benchable import  --file bench.txt --branch main --commit "$(git rev-parse HEAD)"

@@ -8,7 +8,6 @@ statistics as the cloud, on the filesystem.
   config.json                          {"mode":"local"}, or {"url","project"} after login
   runs/20260923T101500Z-baseline.json  one run: the native payload the API accepts
   artifacts/20260923T101500Z-baseline/ files attached with --artifact
-  report.html                          self-contained, regenerated after every record
   sync.json                            which runs are already in which cloud project
 ```
 
@@ -19,10 +18,8 @@ statistics as the cloud, on the filesystem.
   Mann–Whitney when both runs have raw samples (hyperfine's `times`, go `-count`, criterion) and
   Welch's t when they have mean, stddev and n. The cloud adds a noise band learned per metric
   and false-discovery control, which local mode does not.
-- **report.html** makes no network requests. The tables work without JS. The charts (TanStack
-  Charts) show each metric across runs, with points coloured by verdict. It follows the system's
-  light or dark theme, and the "Theme" button toggles it. Open it with `open .benchable/report.html`
-  (macOS), `xdg-open …` (Linux), or `start …` (Windows).
+- There is no local chart. For charts, run `benchable local sync`, or point the app's local
+  watch at `.benchable/runs/`.
 - Whether to commit `.benchable/` is the user's call. The files contain no secrets unless someone
   puts a `key` in `config.json`.
 

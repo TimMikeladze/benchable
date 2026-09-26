@@ -151,14 +151,6 @@ export function computeVerdict(run: LocalRun, baseline: StoredRun | null): Local
   };
 }
 
-/** Verdicts for every stored run against its own baseline, oldest first. For the report. */
-export function verdictHistory(runs: StoredRun[]): Array<StoredRun & { verdict: LocalVerdict }> {
-  return runs.map((row, index) => {
-    const earlier = runs.slice(0, index);
-    return { ...row, verdict: computeVerdict(row.run, pickBaseline(row.run, earlier)) };
-  });
-}
-
 export interface RecordOptions {
   root: string;
   /** Any supported tool's output, or a native payload. */
